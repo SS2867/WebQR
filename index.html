@@ -4,14 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <title>二维码与条形码工具</title>
-  <!--script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script-->
-  <script src="./qrcode.min.js"></script>
-  <!--script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script-->
-  <script src="./JsBarcode.all.min.js"></script>
-  <!--script src="https://unpkg.com/@zxing/library@0.21.3"></script-->
-  <script src="./zxing.min.js"></script>
-  <!--script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script-->
-  <script src="./jsQR.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+  
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+  
+  <script src="https://unpkg.com/@zxing/library@0.21.3"></script>
+  
+  <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
+  
 
   <style>
     :root {
@@ -913,6 +913,7 @@
       el.classList.add('show');
       setTimeout(() => el.classList.remove('show'), 3000);
     }
+    
 
     // 扫描器
     const videoEl = document.getElementById('video');
@@ -923,6 +924,8 @@
     const formatTagEl = document.getElementById('format-tag');
     const symbologyTagEl = document.getElementById('symbology-tag');
     const encodingTagEl = document.getElementById('encoding-tag');
+    const dropzoneEl = document.getElementById('dropzone');
+    const fileInputEl = document.getElementById('file-input');
     const streamHintEl = document.querySelector('#stream-hint');
     const chkBinarize = document.getElementById('chk-binarize');
     const chkRotate = document.getElementById('chk-rotate');
@@ -936,37 +939,102 @@
 
     // 初始化
     async function init() {
-      zxingReader = new ZXing.BrowserMultiFormatReader();
+      try {
+        const hints = new Map();
+        // 设置尝试多种格式
+        const formats = [
+          ZXing.BarcodeFormat.QR_CODE,
+          ZXing.BarcodeFormat.DATA_MATRIX,
+          ZXing.BarcodeFormat.PDF_417,
+          ZXing.BarcodeFormat.AZTEC,
+          ZXing.BarcodeFormat.EAN_13,
+          ZXing.BarcodeFormat.EAN_8,
+          ZXing.BarcodeFormat.UPC_A,
+          ZXing.BarcodeFormat.UPC_E,
+          ZXing.BarcodeFormat.CODE_128,
+          ZXing.BarcodeFormat.CODE_93,
+          ZXing.BarcodeFormat.CODE_39,
+          ZXing.BarcodeFormat.CODABAR,
+          ZXing.BarcodeFormat.ITF,
+        ];
+        hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
+        hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+        zxingReader = new ZXing.BrowserMultiFormatReader(hints);
+        log('ZXing 初始化完成，支持多种格式，ZXing 版本：' + ZXing.version);
+      }catch{
+        zxingReader = new ZXing.BrowserMultiFormatReader();
+        log('ZXing 初始化完成，ZXing 版本：' + ZXing.version);
+      }
+      
       jsQRDetector = new ZXing.BrowserQRCodeReader();
-      log('初始化完成，ZXing 版本：' + ZXing.version);
+      log('jsQRDetector 初始化完成');
+      
       
       // 监听粘贴事件
       document.addEventListener('paste', handlePaste);
       
       // 监听拖拽事件
       const dropzone = document.getElementById('dropzone');
-      dropzone.addEventListener('dragover', e => {
+      ;['dragenter','dragover'].forEach(ev => dropzone.addEventListener(ev, e => {
         e.preventDefault();
         dropzone.classList.add('dragover');
-      });
-      dropzone.addEventListener('dragleave', () => {
-        dropzone.classList.remove('dragover');
-      });
-      dropzone.addEventListener('drop', e => {
+      }));
+      ;['dragleave','drop'].forEach(ev => dropzone.addEventListener(ev, e => {
         e.preventDefault();
+        if (ev === 'drop') {
+          const dt = e.dataTransfer;
+          const files = Array.from(dt.files || []);
+          if (files.length) {
+            files.forEach(handleFile);
+          } else {
+            // 可能是网页图片
+            const url = dt.getData('text/uri-list') || dt.getData('text/plain');
+            if (url) {
+              const img = new Image();
+              img.crossOrigin = 'anonymous';
+              img.onload = async () => {
+                const ok = await processImageSource(img, true);
+                log((ok ? '识别成功：' : '未识别：') + '外部图片');
+                stopStream();
+              };
+              img.onerror = () => log('加载外部图片失败');
+              img.src = url;
+            }
+          }
+        }
         dropzone.classList.remove('dragover');
-        const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
-        if (files.length) handleFiles(files);
-      });
+      }));
+      // dropzone.addEventListener('drop', e => {
+      //   e.preventDefault();
+      //   dropzone.classList.remove('dragover');
+      //   const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+      //   if (files.length) handleFile(files);
+      // });
       
       // 按钮事件
       document.getElementById('btn-camera').addEventListener('click', startCamera);
       document.getElementById('btn-screen').addEventListener('click', startScreen);
       document.getElementById('btn-file').addEventListener('click', () => document.getElementById('file-input').click());
-      document.getElementById('file-input').addEventListener('change', e => handleFiles(Array.from(e.target.files)));
-      document.getElementById('btn-clipboard').addEventListener('click', () => document.execCommand('paste'));
+      document.getElementById('btn-clipboard').addEventListener('click', async () => {
+        try {
+          const items = await navigator.clipboard.read();
+          for (const item of items) {
+            for (const type of item.types) {
+              if (type.startsWith('image/')) {
+                const blob = await item.getType(type);
+                await handleFile(new File([blob], 'clipboard.' + type.split('/')[1], { type }));
+                return;
+              }
+            }
+          }
+          toast('剪贴板中未发现图片', 1);
+        } catch (e) {
+          log('读取剪贴板失败：' + e);
+          toast('请尝试使用 Ctrl/⌘+V 粘贴', 1);
+        }
+      });
       document.getElementById('btn-go-to').addEventListener('click', () => {
-        const t = scanTextEl.value; try{new URL(t);}catch{t='http://'+t;}; window.open(t, "_blank");});
+        let t = scanTextEl.value; try{new URL(t);}catch{t=(isValidURL(t)==1?'http://':'mailto:'+t);}; window.open(t, "_blank");});
       document.getElementById('btn-stop').addEventListener('click', stopStream);
       document.getElementById('btn-clear-scan').addEventListener('click', clearResults);
       document.getElementById('btn-copy-frame').addEventListener('click', () => copyCanvas(canvasEl));
@@ -977,43 +1045,68 @@
     }
 
     // 处理粘贴事件
-    async function handlePaste(e) {
-      const items = e.clipboardData?.items;
-      if (!items) return;
-      
-      const files = Array.from(items)
-        .filter(i => i.type.startsWith('image/'))
-        .map(i => i.getAsFile());
-        
-      if (files.length) {
-        e.preventDefault();
-        handleFiles(files);
+    async function handlePaste(ev) {
+      const items = ev.clipboardData?.items || [];
+      for (const item of items) {
+        if (item.type.startsWith('image/')) {
+          const file = item.getAsFile();
+          stopStream();
+          await handleFile(file);
+          ev.preventDefault();
+          return;
+        }
+      }
+      // 若无 image，尝试读取文本为 Data URL
+      const text = ev.clipboardData?.getData('text');
+      if (text && /^data:image\//i.test(text)) {
+        const img = new Image();
+        img.onload = async () => {
+          const ok = await processImageSource(img, true);
+          log((ok ? '识别成功：' : '未识别：') + '剪贴板 DataURL');
+        };
+        img.onerror = () => log('解析剪贴板 DataURL 失败');
+        img.src = text;
+        ev.preventDefault();
       }
     }
 
-    // 处理文件
-    async function handleFiles(files) {
-      for (const file of files) {
-        log(`处理文件：${file.name}`);
-        const img = new Image();
-        img.src = URL.createObjectURL(file);
-        await new Promise(r => img.onload = r);
-        await scanImage(img);
-        URL.revokeObjectURL(img.src);
+    fileInputEl.addEventListener('change', async e => {
+      const files = Array.from(e.target.files || []);
+      for (const f of files) {
+        await handleFile(f);
+        stopStream();
       }
+    });
+    // 处理文件
+    async function handleFile(file) {
+      if (!file || !file.type.startsWith('image/')) { log('文件不是图片：' + (file?.name || '')); return; }
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = async () => {
+        const ok = await processImageSource(img, true);
+        log((ok ? '识别成功：' : '未识别：') + (file.name || '图片'));
+        URL.revokeObjectURL(url);
+      };
+      img.onerror = () => { log('加载图片失败：' + (file.name || '')); URL.revokeObjectURL(url); };
+      img.src = url;
     }
 
     // 开始摄像头
     async function startCamera() {
       try {
         stopStream();
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
         videoEl.srcObject = stream;
-        await videoEl.play();
-        streamHintEl.textContent = '摄像头';
-        startScanning();
+        await video.play();
+        streamHintEl.textContent = '摄像头已开启';
+        toast('摄像头已开启', 0);
+        // 定时抓帧
+        scanTimer = setInterval(async () => {
+          await processImageSource(video, false);
+        }, Math.max(60, parseInt(intervalEl.value,10)||300));
       } catch (e) {
         log('摄像头错误：' + e.message);
+        toast('无法访问摄像头', 1);
       }
     }
 
@@ -1021,11 +1114,13 @@
     async function startScreen() {
       try {
         stopStream();
-        stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+        stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
         videoEl.srcObject = stream;
-        await videoEl.play();
-        streamHintEl.textContent = '屏幕共享';
-        startScanning();
+        await video.play();
+        streamHintEl.textContent = '屏幕共享中';
+        scanTimer = setInterval(async () => {
+          await processImageSource(video, false);
+        }, Math.max(60, parseInt(intervalEl.value,10)||300));
       } catch (e) {
         log('屏幕共享错误：' + e.message);
       }
@@ -1052,130 +1147,251 @@
     }
 
     // 捕获并扫描
-    async function captureAndScan() {
-      if (videoEl.readyState < 2) return;
+    // async function captureAndScan() {
+    //   if (videoEl.readyState < 2) return;
       
-      // 调整画布大小
-      canvasEl.width = videoEl.videoWidth;
-      canvasEl.height = videoEl.videoHeight;
+    //   // 调整画布大小
+    //   canvasEl.width = videoEl.videoWidth;
+    //   canvasEl.height = videoEl.videoHeight;
       
-      // 绘制帧
-      ctx.drawImage(videoEl, 0, 0, canvasEl.width, canvasEl.height);
+    //   // 绘制帧
+    //   ctx.drawImage(videoEl, 0, 0, canvasEl.width, canvasEl.height);
       
-      // 扫描
-      await scanCanvas(canvasEl);
+    //   // 扫描
+    //   await scanCanvas(canvasEl);
+    // }
+
+    async function processImageSource(imgLike, rotateTry) {
+      const maxSide = parseInt(maxSizeEl.value, 10) || 1600;
+      const bin = chkBinarize.checked;
+      const doRotate = chkRotate.checked && rotateTry;
+
+      const angles = doRotate ? [0, 90, 180, 270] : [0];
+      for (const a of angles) {
+        if (!preprocessToCanvas(imgLike, maxSide, bin, a)) return false;
+        const ok = await tryDecodeCurrentFrame();
+        if (ok) return true;
+      }
+      return false;
     }
 
-    // 扫描画布
-    async function scanCanvas(canvas) {
-      const maxSize = parseInt(maxSizeEl.value);
-      let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      
-      // 调整大小以提高性能
-      if (Math.max(imageData.width, imageData.height) > maxSize) {
-        const scale = maxSize / Math.max(imageData.width, imageData.height);
-        const smallCanvas = document.createElement('canvas');
-        smallCanvas.width = Math.floor(imageData.width * scale);
-        smallCanvas.height = Math.floor(imageData.height * scale);
-        const smallCtx = smallCanvas.getContext('2d');
-        smallCtx.drawImage(canvas, 0, 0, smallCanvas.width, smallCanvas.height);
-        imageData = smallCtx.getImageData(0, 0, smallCanvas.width, smallCanvas.height);
-      }
-      
-      // 二值化
-      if (chkBinarize.checked) {
-        const data = imageData.data;
-        for (let i = 0; i < data.length; i += 4) {
-          const avg = (data[i] + data[i+1] + data[i+2]) / 3;
-          const val = avg > 128 ? 255 : 0;
-          data[i] = data[i+1] = data[i+2] = val;
+    async function tryDecodeCurrentFrame() {
+      let result = await decodeFromCanvas();
+      if (result) {
+        let rawBytes = result.getRawBytes ? result.getRawBytes() : null;
+        let text = result.getText ? result.getText() : (result.text || '');
+        // ZXing 若含结构化编码字节可从 rawBytes 推断
+        let encoding = '未知';
+        if ((!text || /[\uFFFD]/.test(text)) && rawBytes) {
+          const dec = autoDecodeRaw(rawBytes);
+          text = dec.text;
+          encoding = dec.encoding;
+        } else if (rawBytes) {
+          encoding = '由解码器提供/猜测';
         }
-      }
-      
-      // 使用 ZXing 扫描
-      try {
-        const result = await zxingReader.decodeFromImageData(imageData);
-        if (result) {
-          handleScanResult(result);
-          return;
-        }
-      } catch (e) {
-        // 忽略错误，继续尝试 jsQR
-      }
-      
-      // 使用 jsQR 扫描（仅二维码）
-      try {
-        const code = jsQR(imageData.data, imageData.width, imageData.height, {
-          inversionAttempts: 'dontInvert',
+        showResult({
+          text,
+          rawBytes,
+          format: result.getBarcodeFormat ? String(result.getBarcodeFormat()) : (result.format || ''),
+          symbology: result.getBarcodeFormat ? result.getBarcodeFormat().toString().replace(/_/g, ' ') : '',
+          encoding
         });
-        
-        if (code) {
-          handleScanResult({
-            text: code.data,
-            rawBytes: textToBytes(code.data),
-            format: 'QR_CODE'
-          });
-          return;
-        }
-      } catch (e) {
-        // 忽略错误
+        return true;
       }
+      // 兜底：仅 QR
+      const q = decodeWithJsQR();
+      if (q) {
+        showResult({ text: q.text, rawBytes: null, format: q.format, symbology: 'QR Code', encoding: 'N/A' });
+        return true;
+      }
+      return false;
     }
 
-    // 处理扫描结果
-    function handleScanResult(result) {
-      scanTextEl.value = result.text;
-      if (isValidURL(result.text)){
+    function showResult({ text, rawBytes, format, symbology, encoding }) {
+      scanTextEl.value = text ?? '';
+      scanHexEl.value = rawBytes ? bytesToHex(rawBytes) : '';
+      formatTagEl.textContent = "Format Tag: " + (format || '-');
+      symbologyTagEl.textContent = "Symbology: " + (symbology || '-');
+      encodingTagEl.textContent = encoding || (rawBytes ? '自动检测' : '无');
+      
+      if (isValidURL(text)){
         document.getElementById('btn-go-to').removeAttribute("disabled");
       }else{
         document.getElementById('btn-go-to').setAttribute("disabled", "");
       }
-
-      formatTagEl.textContent = `Format: ${result.format || 'QR_CODE'}`;
-      symbologyTagEl.textContent = `Symbology: ${result.format || 'QR_CODE'}`;
-      
-      // 处理原始字节
-      if (result.rawBytes) {
-        const hex = bytesToHex(result.rawBytes);
-        scanHexEl.value = hex;
-        
-        // 尝试自动解码
-        const decoded = autoDecodeRaw(result.rawBytes);
-        encodingTagEl.textContent = decoded.encoding;
-      } else {
-        scanHexEl.value = '';
-        encodingTagEl.textContent = '文本';
-      }
-      
-      log(`检测到: ${result.format}，内容: ${result.text.substring(0, 100)}${result.text.length > 100 ? '...' : ''}`);
     }
 
-    function isValidURL(string) {
-      try {
-        string = string.trim();
-        new URL()
-        return true;
-      } catch (err) {
-        const urlPattern = new RegExp(
-          "^(https?:\\/\\/)?" + // 协议
-            "((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|" + // 域名
-            "((\\d{1,3}\\.){3}\\d{1,3}))" + // IP地址
-            "(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*" + // 端口和路径
-            "(\\?[;&a-z\\d%_.~+=-]*)?" + // 查询字符串
-            "(\\#[-a-z\\d_]*)?$",
-          "i"
-        ); // 碎片标识
-        return urlPattern.test(string);
+    function preprocessToCanvas(img, maxSide, binarize, rotateStepDeg = 0) {
+      const iw = img.videoWidth || img.naturalWidth || img.width;
+      const ih = img.videoHeight || img.naturalHeight || img.height;
+      if (!iw || !ih) return false;
+
+      const scale = Math.min(1, maxSide / Math.max(iw, ih));
+      const w = Math.round(iw * scale);
+      const h = Math.round(ih * scale);
+
+      if (rotateStepDeg) {
+        // 旋转画布尺寸调整
+        const rad = rotateStepDeg * Math.PI / 180;
+        const sin = Math.abs(Math.sin(rad)), cos = Math.abs(Math.cos(rad));
+        canvasEl.width = Math.round(w * cos + h * sin);
+        canvasEl.height = Math.round(w * sin + h * cos);
+        ctx.save();
+        ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
+        ctx.translate(canvasEl.width/2, canvasEl.height/2);
+        ctx.rotate(rad);
+        ctx.drawImage(img, -w/2, -h/2, w, h);
+        ctx.restore();
+      } else {
+        canvasEl.width = w; canvasEl.height = h;
+        ctx.clearRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
       }
+
+      if (binarize) {
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        // 灰度 + Otsu 简化（快速阈值：均值）
+        let sum = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          const g = (data[i]*0.299 + data[i+1]*0.587 + data[i+2]*0.114) | 0;
+          data[i] = data[i+1] = data[i+2] = g;
+          sum += g;
+        }
+        const mean = sum / (data.length/4);
+        const thr = mean;
+        for (let i = 0; i < data.length; i += 4) {
+          const v = data[i] > thr ? 255 : 0;
+          data[i] = data[i+1] = data[i+2] = v;
+        }
+        ctx.putImageData(imageData, 0, 0);
+      }
+      return true;
+    }
+    async function decodeFromCanvas() {
+      if (!zxingReader) return null;
+      try {
+        const luminanceSource = new ZXing.HTMLCanvasElementLuminanceSource(canvasEl);
+        const binarizer = new ZXing.GlobalHistogramBinarizer(luminanceSource);
+        const bitmap = new ZXing.BinaryBitmap(binarizer);
+        const result = zxingReader.decodeBitmap(bitmap);
+        return result;
+      } catch (e) {
+        return null;
+      }
+    }
+    
+
+    // 扫描画布
+    // async function scanCanvas(canvas) {
+    //   const maxSize = parseInt(maxSizeEl.value);
+    //   let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      
+    //   // 调整大小以提高性能
+    //   if (Math.max(imageData.width, imageData.height) > maxSize) {
+    //     const scale = maxSize / Math.max(imageData.width, imageData.height);
+    //     const smallCanvas = document.createElement('canvas');
+    //     smallCanvas.width = Math.floor(imageData.width * scale);
+    //     smallCanvas.height = Math.floor(imageData.height * scale);
+    //     const smallCtx = smallCanvas.getContext('2d');
+    //     smallCtx.drawImage(canvas, 0, 0, smallCanvas.width, smallCanvas.height);
+    //     imageData = smallCtx.getImageData(0, 0, smallCanvas.width, smallCanvas.height);
+    //   }
+      
+    //   // 二值化
+    //   if (chkBinarize.checked) {
+    //     const data = imageData.data;
+    //     for (let i = 0; i < data.length; i += 4) {
+    //       const avg = (data[i] + data[i+1] + data[i+2]) / 3;
+    //       const val = avg > 128 ? 255 : 0;
+    //       data[i] = data[i+1] = data[i+2] = val;
+    //     }
+    //   }
+      
+    //   // 使用 ZXing 扫描
+    //   try {
+    //     const result = await zxingReader.decodeFromImageData(imageData);
+    //     if (result) {
+    //       handleScanResult(result);
+    //       return;
+    //     }
+    //   } catch (e) {
+    //     // 忽略错误，继续尝试 jsQR
+    //   }
+      
+    //   // 使用 jsQR 扫描（仅二维码）
+    //   try {
+    //     const code = jsQR(imageData.data, imageData.width, imageData.height, {
+    //       inversionAttempts: 'dontInvert',
+    //     });
+        
+    //     if (code) {
+    //       handleScanResult({
+    //         text: code.data,
+    //         rawBytes: textToBytes(code.data),
+    //         format: 'QR_CODE'
+    //       });
+    //       return;
+    //     }
+    //   } catch (e) {
+    //     // 忽略错误
+    //   }
+    // }
+
+    // 处理扫描结果
+    // function handleScanResult(result) {
+    //   scanTextEl.value = result.text;
+      
+    //   console.log(isValidURL(result.text));
+    //   if (isValidURL(result.text)){
+    //     document.getElementById('btn-go-to').removeAttribute("disabled");
+    //   }else{
+    //     document.getElementById('btn-go-to').setAttribute("disabled", "");
+    //   }
+
+    //   formatTagEl.textContent = `Format: ${result.format || 'QR_CODE'}`;
+    //   symbologyTagEl.textContent = `Symbology: ${result.format || 'QR_CODE'}`;
+      
+    //   // 处理原始字节
+    //   if (result.rawBytes) {
+    //     const hex = bytesToHex(result.rawBytes);
+    //     scanHexEl.value = hex;
+        
+    //     // 尝试自动解码
+    //     const decoded = autoDecodeRaw(result.rawBytes);
+    //     encodingTagEl.textContent = decoded.encoding;
+    //   } else {
+    //     scanHexEl.value = '';
+    //     encodingTagEl.textContent = '文本';
+    //   }
+      
+    //   log(`检测到: ${result.format}，内容: ${result.text.substring(0, 100)}${result.text.length > 100 ? '...' : ''}`);
+    // }
+
+    function isValidURL(string) {
+      
+      const urlPattern = new RegExp(
+        "^(https?:\\/\\/)?" + // 协议
+          "((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|" + // 域名
+          "((\\d{1,3}\\.){3}\\d{1,3}))" + // IP地址
+          "(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*" + // 端口和路径
+          "(\\?[;&a-z\\d%_.~+=-]*)?" + // 查询字符串
+          "(\\#[-a-z\\d_]*)?$",
+        "i"
+      ); // 碎片标识
+      if (urlPattern.test(string)){return 1;}
+      const emailPattern = /^(mailto:)?[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      return emailPattern.test(string)? 2: 0;
+      
     }
 
     // 扫描图像
-    async function scanImage(img) {
-      canvasEl.width = img.width;
-      canvasEl.height = img.height;
-      ctx.drawImage(img, 0, 0);
-      await scanCanvas(canvasEl);
-    }
+    // async function scanImage(img) {
+    //   canvasEl.width = img.width;
+    //   canvasEl.height = img.height;
+    //   ctx.drawImage(img, 0, 0);
+    //   await scanCanvas(canvasEl);
+    // }
 
     // 清空结果
     function clearResults() {
