@@ -4,13 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <title>二维码与条形码工具</title>
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
-  
-  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-  
-  <script src="https://unpkg.com/@zxing/library@0.21.3"></script>
-  
-  <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
+  <!--script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script-->
+  <script src="./qrcode.min.js"></script>
+  <!--script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script-->
+  <script src="./JsBarcode.all.min.js"></script>
+  <!--script src="https://unpkg.com/@zxing/library@0.21.3"></script-->
+  <script src="./zxing.min.js"></script>
+  <!--script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script-->
+  <script src="./jsQR.js"></script>
   
 
   <style>
@@ -391,17 +392,21 @@
               <div class="field">
                 <label id="label-params">预处理与参数</label>
                 <div class="row">
+                  <input type="checkbox" id="chk-binarize"> 
                   <label class="flex" title="对输入图像进行灰度 + 二值化，提升对比度" id="label-binarize">
-                    <input type="checkbox" id="chk-binarize"> 二值化
+                    二值化
                   </label>
+                  <input type="checkbox" id="chk-rotate" checked="">
                   <label class="flex" title="自动旋转多角度尝试" id="label-rotate">
-                    <input type="checkbox" id="chk-rotate" checked=""> 旋转尝试
+                     旋转尝试
                   </label>
+                  
                   <label class="flex" title="高分辨率解码更准但更慢" id="label-max-size">
                     最大边长:
-                    <input type="number" id="max-size" value="1600" min="256" max="4000" step="64" style="width:90px">
-                    px
+                    
                   </label>
+                  <input type="number" id="max-size" value="1600" min="256" max="4000" step="64" style="width:90px">
+                    px
                 </div>
               </div>
 
@@ -662,7 +667,10 @@
             el.placeholder = translations[lang][key];
           } else if (el.tagName === 'INPUT' && el.type !== 'text') {
             // 跳过非文本输入框和选择
-          } else {
+          //} else if (el.tagName === "LABEL" && el.textContent===""){
+          //  el.title = translations[lang][key];
+          }
+          else {
             el.textContent = translations[lang][key];
           }
         });
