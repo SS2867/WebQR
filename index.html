@@ -1,0 +1,1194 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>二维码与条形码工具</title>
+  <!--script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script-->
+  <script src="./qrcode.min.js"></script>
+  <!--script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script-->
+  <script src="./JsBarcode.all.min.js"></script>
+  <!--script src="https://unpkg.com/@zxing/library@0.21.3"></script-->
+  <script src="./zxing.min.js"></script>
+  <!--script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script-->
+  <script src="./jsQR.js"></script>
+
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #0b0c0f;
+      --fg: #e7e9ee;
+      --muted: #8a90a2;
+      --card: #151822;
+      --accent: #4da3ff;
+      --ok: #27c281;
+      --warn: #ffb020;
+      --err: #ff5d5d;
+      --border: #2a2f3a;
+    }
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #f7f8fb;
+        --fg: #1d2129;
+        --muted: #636a7b;
+        --card: #ffffff;
+        --accent: #246bff;
+        --ok: #0aa770;
+        --warn: #b87900;
+        --err: #d13f3f;
+        --border: #e5e7ef;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font: 15px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
+    }
+    header {
+      padding: 16px 16px 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    header h1 {
+      font-size: 20px;
+      margin: 0;
+    }
+    .language-selector {
+      display: flex;
+      gap: 8px;
+    }
+    .language-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .language-btn.active {
+      background: var(--accent);
+      color: white;
+      border-color: transparent;
+    }
+    header p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    main {
+      padding: 12px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 16px;
+    }
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 16px;
+    }
+    .tab {
+      padding: 8px 16px;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+    }
+    .tab.active {
+      border-bottom-color: var(--accent);
+      color: var(--accent);
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    .section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .section-title h2 {
+      font-size: 16px;
+      margin: 0;
+    }
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin: 8px 0;  
+    }
+    .row > * {
+      flex: none;
+    }
+    .field {
+      display: grid;
+      align-items: start;
+      gap: 6px;
+      margin: 8px 0;
+    }
+    label { color: var(--muted); font-size: 13px; }
+    input[type="text"], input[type="number"], select, textarea {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--fg);
+      outline: none;
+    }
+    textarea { min-height: 80px; resize: vertical; }
+    button, .btn {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--fg);
+      padding: 8px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button.primary {
+      background: var(--accent);
+      border-color: transparent;
+      color: #fff;
+    }
+    button.ok { background: var(--ok); color: #fff; border-color: transparent; }
+    button.warn { background: var(--warn); color: #fff; border-color: transparent; }
+    button.danger { background: var(--err); color: #fff; border-color: transparent; }
+    button:disabled { opacity: .55; cursor: not-allowed; }
+    .hint { color: var(--muted); font-size: 12px; }
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      word-break: break-all;
+      white-space: pre-wrap;
+    }
+    .flex {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .hr { height: 1px; background: var(--border); margin: 10px 0; }
+    .grid {
+      display: grid;
+      gap: 8px;
+    }
+    .two { grid-template-columns: repeat(2, minmax(0,1fr)); }
+    .three { grid-template-columns: repeat(3, minmax(0,1fr)); }
+    .dropzone {
+      border: 2px dashed var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      text-align: center;
+      color: var(--muted);
+    }
+    .dropzone.dragover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: color-mix(in oklab, var(--accent) 10%, transparent);
+    }
+    video, canvas, img {
+      max-width: 100%;
+      width: 100%;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #0002;
+    }
+    .split {
+      display: grid;
+      gap: 8px;
+      grid-template-columns: 1fr 1fr;
+    }
+    @media (max-width: 768px) {
+      .split { grid-template-columns: 1fr; }
+    }
+    .kbd {
+      background: #0003;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1px 6px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+    }
+    .tag {
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .result-bad { color: var(--err); }
+    .result-ok { color: var(--ok); }
+    .copy-btn { font-size: 12px; padding: 6px 8px; }
+    footer {
+      padding: 8px 16px 24px;
+      color: var(--muted);
+      font-size: 12px;
+      text-align: center;
+    }
+    .supported-formats {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .format-item {
+      padding: 6px;
+      border-radius: 8px;
+      background: color-mix(in oklab, var(--accent) 10%, transparent);
+      text-align: center;
+      font-size: 12px;
+    }
+    .generate-preview {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+    #codeCanvas {
+      max-width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      background: white;
+    }
+    .action-buttons {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .notification {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 15px 20px;
+      background: var(--ok);
+      color: white;
+      border-radius: 4px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      transform: translateX(100%);
+      transition: transform 0.3s ease-in-out;
+      z-index: 1000;
+    }
+    .notification.show {
+      transform: translateX(0);
+    }
+    .notification.error {
+      background: var(--err);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1 id="header-title">二维码与条形码工具</h1>
+      <p id="header-desc">生成和扫描多种格式的二维码与条形码</p>
+    </div>
+    <div class="language-selector">
+      <button class="language-btn active" data-lang="zh">中文</button>
+      <button class="language-btn" data-lang="en">English</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="tabs">
+      <div class="tab active" data-tab="scan" id="tab-scan">扫描</div>
+      <div class="tab" data-tab="generate" id="tab-generate">生成</div>
+    </div>
+
+
+    <!-- 扫描标签页 -->
+    <div class="tab-content active" id="scan-tab">
+      <div class="card" id="scan-card">
+        <div class="section-title">
+          <h2 id="scan-title">扫描</h2>
+          <div class="flex">
+            <span class="tag">ZXing + jsQR</span>
+            <button id="btn-clear-scan" class="btn" id="btn-clear">清空结果</button>
+          </div>
+        </div>
+
+        <div class="split">
+          <div class="">
+            <div class="field">
+              <label id="label-input-source">选择输入来源</label>
+              <div class="row">
+                <button id="btn-camera" class="btn" id="btn-camera-text">摄像头</button>
+                <button id="btn-screen" class="btn" id="btn-screen-text">屏幕共享</button>
+              </div>
+              <div class="dropzone" id="dropzone">
+                <button id="btn-file" class="btn" id="btn-file-text">选择文件</button>
+                <span id="dropzone-text">，或拖拽图片到此处，或按 Ctrl/⌘+V</span>
+                <button id="btn-clipboard" id="btn-paste-text">粘贴图像</button>
+              </div>
+              <input type="file" id="file-input" accept="image/*" hidden="" multiple="">
+            </div>
+            <div class="field">
+              <label id="label-scan-result">扫描结果（文本）</label>
+              <textarea id="scan-text" class="mono" placeholder="结果文本"></textarea>
+              <div class="row">
+                <button class="btn copy-btn" data-copy="#scan-text" id="btn-copy-text">复制文本</button>
+                <button class="btn copy-btn" id="btn-go-to" disabled>前往目标</button>
+                <span id="format-tag" class="tag">Format Tag: -</span>
+                <span id="symbology-tag" class="tag">Symbology: -</span>
+              </div>
+            </div>
+
+            <div class="field">
+              <label id="label-scan-hex">扫描结果（Hex）</label>
+              <textarea id="scan-hex" class="mono" placeholder="十六进制（原始字节，如有）"></textarea>
+              <div class="row">
+                <button class="btn copy-btn" data-copy="#scan-hex" id="btn-copy-hex">复制 Hex</button>
+                <span class="hint" id="label-encoding">编码: <span id="encoding-tag">未知/自动</span></span>
+              </div>
+            </div>
+            
+            <div class="field">
+              <label id="label-log">日志</label>
+              <textarea id="log" class="mono" style="height:100px" readonly=""></textarea>
+            </div>
+            
+          </div>
+
+          <div class="grid">
+            
+            <div class="">
+              <div class="split">
+                <div class="grid">
+                  <label id="label-preview">实时预览</label>
+                  <video id="video" playsinline="" muted=""></video>
+                </div>
+                <div class="grid">
+                  
+                  <label id="label-latest-frame">最近一帧（用于文件/剪贴板/拖拽也会显示）</label>
+                  <canvas id="canvas" width="32" height="24"></canvas>
+                  <div class="row">
+                    <button id="btn-copy-frame" class="btn" id="btn-copy-frame-text">复制图像</button>
+                    <button id="btn-save-frame" class="btn" id="btn-save-frame-text">保存图像</button>
+                    <span class="hint" id="label-right-click">右键另存为亦可</span>
+                  </div>
+                </div>
+
+              </div>
+              
+              <div class="row">
+                <button id="btn-stop" class="btn" id="btn-stop-text">停止输入</button>
+                <span class="hint" id="stream-hint">未激活</span>
+              </div>
+
+              <div class="field">
+                <label id="label-params">预处理与参数</label>
+                <div class="row">
+                  <label class="flex" title="对输入图像进行灰度 + 二值化，提升对比度" id="label-binarize">
+                    <input type="checkbox" id="chk-binarize"> 二值化
+                  </label>
+                  <label class="flex" title="自动旋转多角度尝试" id="label-rotate">
+                    <input type="checkbox" id="chk-rotate" checked=""> 旋转尝试
+                  </label>
+                  <label class="flex" title="高分辨率解码更准但更慢" id="label-max-size">
+                    最大边长:
+                    <input type="number" id="max-size" value="1600" min="256" max="4000" step="64" style="width:90px">
+                    px
+                  </label>
+                </div>
+              </div>
+
+              <div class="field">
+                <label id="label-frame-rate">帧抓取频率（摄像头/屏幕）</label>
+                <div class="row">
+                  <input type="number" id="interval" value="300" min="60" step="20" style="width:120px">
+                  <span class="hint" id="label-ms-per-frame">毫秒/帧（越小越快）</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="field">
+
+            </div>
+
+          </div>
+        </div>
+        
+        <div class="hr"></div>
+        
+        <div class="field">
+          <label id="label-supported-formats">支持的格式</label>
+          <div class="supported-formats">
+            <div class="format-item">QR Code</div>
+            <div class="format-item">Data Matrix</div>
+            <div class="format-item">PDF417</div>
+            <div class="format-item">Aztec</div>
+            <div class="format-item">EAN-13</div>
+            <div class="format-item">EAN-8</div>
+            <div class="format-item">UPC A</div>
+            <div class="format-item">Code 128</div>
+            <div class="format-item">Code 93</div>
+            <div class="format-item">Code 39</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    
+    <!-- 生成标签页 -->
+    <div class="tab-content" id="generate-tab">
+      <div class="card">
+        <div class="split">
+          <div class="controls">
+            <div class="field">
+              <label for="codeType" id="label-code-type">码类型</label>
+              <select id="codeType">
+                <optgroup label="二维码 QR Code" id="optgroup-qr">
+                  <option value="qrcode">QR Code</option>
+                </optgroup>
+                <optgroup label="条形码 Barcode" id="optgroup-barcode">
+                  <option value="ean13">EAN-13</option>
+                  <option value="ean8">EAN-8</option>
+                  <option value="code128">Code 128</option>
+                  <option value="code39">Code 39</option>
+                </optgroup>
+              </select>
+            </div>
+            
+            <div class="field">
+              <label for="content" id="label-content">内容</label>
+              <textarea id="content" placeholder="请输入要编码的文本或URL"></textarea>
+            </div>
+            
+            <div id="qrcodeOptions">
+              <div class="field">
+                <label for="qrcodeErrorCorrection" id="label-error-correction">纠错等级</label>
+                <select id="qrcodeErrorCorrection">
+                  <option value="L">L - 低 (7%)</option>
+                  <option value="M" selected>M - 中 (15%)</option>
+                  <option value="Q">Q - 四分 (25%)</option>
+                  <option value="H">H - 高 (30%)</option>
+                </select>
+              </div>
+              
+              <div class="field">
+                <label for="qrcodeVersion" id="label-qr-version">QR 版本 (1-40)</label>
+                <input type="number" id="qrcodeVersion" min="1" max="40" value="0">
+                <small id="label-auto-select">0 表示自动选择</small>
+              </div>
+            </div>
+            
+            <div id="barcodeOptions" style="display: none;">
+              <div class="field">
+                <label for="barcodeDisplayValue" id="label-display-text">显示文本</label>
+                <select id="barcodeDisplayValue">
+                  <option value="true" id="option-yes">是</option>
+                  <option value="false" id="option-no">否</option>
+                </select>
+              </div>
+            </div>
+            
+            <button id="generateBtn" class="primary" id="btn-generate">生成代码</button>
+          </div>
+          
+          <div class="generate-preview">
+            <canvas id="codeCanvas"></canvas>
+            <div class="action-buttons">
+              <button id="downloadBtn" class="btn" id="btn-download">下载图片</button>
+              <button id="copyBtn" class="btn" id="btn-copy">复制图片</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer id="footer-text">
+    本页仅在本地浏览器中运行。快捷键：粘贴图像 Ctrl/⌘+V。由 Github:SS2867 在 GPT-5、DeepSeek-R1 的协助下构建。
+  </footer>
+
+  <div class="notification" id="notification">操作成功！</div>
+
+  <script>
+    // 语言支持
+    const translations = {
+      zh: {
+        // 标题和描述
+        'header-title': '二维码与条形码工具',
+        'header-desc': '生成和扫描多种格式的二维码与条形码',
+        'tab-generate': '生成',
+        'tab-scan': '扫描',
+        'footer-text': '本页仅在本地浏览器中运行。快捷键：粘贴图像 Ctrl/⌘+V。由 Github:SS2867 在 GPT-5、DeepSeek-R1 的协助下构建。',
+        
+        
+        // 生成页面
+        'label-code-type': '码类型',
+        'label-content': '内容',
+        'label-error-correction': '纠错等级',
+        'label-qr-version': 'QR 版本 (1-40)',
+        'label-auto-select': '0 表示自动选择',
+        'label-display-text': '显示文本',
+        'option-yes': '是',
+        'option-no': '否',
+        'generateBtn': '生成代码',
+        'downloadBtn': '下载图片',
+        'copyBtn': '复制图片',
+        
+        // 扫描页面
+        'scan-title': '扫描',
+        'btn-clear-scan': '清空结果',
+        'label-input-source': '选择输入来源',
+        'btn-camera': '摄像头',
+        'btn-screen': '屏幕共享',
+        'btn-file': '选择文件',
+        'dropzone-text': '，或拖拽图片到此处，或按 Ctrl/⌘+V',
+        'btn-clipboard': '粘贴图像',
+        'label-scan-result': '扫描结果（文本）',
+        'btn-copy-text': '复制文本',
+        "btn-go-to": '前往目标',
+        'label-scan-hex': '扫描结果（Hex）',
+        'btn-copy-hex': '复制 Hex',
+        'label-encoding': '编码:',
+        'label-log': '日志',
+        'label-preview': '实时预览',
+        'label-latest-frame': '最近一帧（用于文件/剪贴板/拖拽也会显示）',
+        'btn-copy-frame': '复制图像',
+        'btn-save-frame': '保存图像',
+        'label-right-click': '右键另存为亦可',
+        'btn-stop': '停止输入',
+        'label-params': '预处理与参数',
+        'label-binarize': '二值化',
+        'label-rotate': '旋转尝试',
+        'label-max-size': '最大边长:',
+        'label-frame-rate': '帧抓取频率（摄像头/屏幕）',
+        'label-ms-per-frame': '毫秒/帧（越小越快）',
+        'label-supported-formats': '支持的格式',
+        
+        // 通知消息
+        'notification-success': '操作成功！',
+        'notification-downloaded': '图片已下载',
+        'notification-copied': '图片已复制到剪贴板',
+        'notification-copy-failed': '复制失败，请使用现代浏览器',
+        'notification-empty-content': '请输入内容',
+        'notification-generation-failed': '生成失败: ',
+        'notification-qr-success': '二维码生成成功',
+        'notification-barcode-success': '条形码生成成功'
+      },
+      en: {
+        // 标题和描述
+        'header-title': 'QR & Barcode Tool',
+        'header-desc': 'Generate and scan multiple formats of QR codes and barcodes',
+        'tab-generate': 'Generate',
+        'tab-scan': 'Scan',
+        'footer-text': 'This page runs only in the local browser. Created by Github:SS2867 with the assistance of GPT-5 and DeepSeek-R1.',
+        
+        // 生成页面
+        'label-code-type': 'Code Type',
+        'label-content': 'Content',
+        'label-error-correction': 'Error Correction Level',
+        'label-qr-version': 'QR Version (1-40)',
+        'label-auto-select': '0 for auto selection',
+        'label-display-text': 'Display Text',
+        'option-yes': 'Yes',
+        'option-no': 'No',
+        'generateBtn': 'Generate Code',
+        'downloadBtn': 'Download Image',
+        'copyBtn': 'Copy Image',
+        
+        // 扫描页面
+        'scan-title': 'Scan',
+        'btn-clear-scan': 'Clear Results',
+        'label-input-source': 'Select Input Source',
+        'btn-camera': 'Camera',
+        'btn-screen': 'Screen Share',
+        'btn-file': 'Select File',
+        'dropzone-text': ', or drag and drop image here, or press Ctrl/⌘+V to',
+        'btn-clipboard': 'Paste Image',
+        'label-scan-result': 'Scan Result (Text)',
+        'btn-copy-text': 'Copy Text',
+        "btn-go-to": 'Go to URL',
+        'label-scan-hex': 'Scan Result (Hex)',
+        'btn-copy-hex': 'Copy Hex',
+        'label-encoding': 'Encoding:',
+        'label-log': 'Log',
+        'label-preview': 'Live Preview',
+        'label-latest-frame': 'Latest Frame (also shown for file/clipboard/drag)',
+        'btn-copy-frame': 'Copy Image',
+        'btn-save-frame': 'Save Image',
+        'label-right-click': 'Right-click to save as well',
+        'btn-stop': 'Stop Input',
+        'label-params': 'Preprocessing & Parameters',
+        'label-binarize': 'Binarize',
+        'label-rotate': 'Rotation Attempt',
+        'label-max-size': 'Max Side:',
+        'label-frame-rate': 'Frame Rate (Camera/Screen)',
+        'label-ms-per-frame': 'ms/frame (smaller is faster)',
+        'label-supported-formats': 'Supported Formats',
+        
+        // 通知消息
+        'notification-success': 'Operation successful!',
+        'notification-downloaded': 'Image downloaded',
+        'notification-copied': 'Image copied to clipboard',
+        'notification-copy-failed': 'Copy failed, please use a modern browser',
+        'notification-empty-content': 'Please enter content',
+        'notification-generation-failed': 'Generation failed: ',
+        'notification-qr-success': 'QR code generated successfully',
+        'notification-barcode-success': 'Barcode generated successfully'
+      }
+    };
+
+    let currentLang = 'zh';
+
+    function changeLanguage(lang) {
+      currentLang = lang;
+      
+      // 更新语言按钮状态
+      document.querySelectorAll('.language-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.lang === lang);
+      });
+      
+      // 更新所有文本内容
+      Object.keys(translations[lang]).forEach(key => {
+        const elements = document.querySelectorAll(`[id="${key}"]`);
+        elements.forEach(el => {
+          if (el.tagName === 'INPUT' && el.type === 'text') {
+            el.placeholder = translations[lang][key];
+          } else if (el.tagName === 'INPUT' && el.type !== 'text') {
+            // 跳过非文本输入框和选择
+          } else {
+            el.textContent = translations[lang][key];
+          }
+        });
+      });
+    }
+
+    // 初始化语言切换
+    document.querySelectorAll('.language-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        changeLanguage(btn.dataset.lang);
+      });
+    });
+
+    // 标签页切换
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        const tabName = tab.dataset.tab;
+        
+        // 更新标签页状态
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        
+        // 更新内容显示
+        document.querySelectorAll('.tab-content').forEach(content => {
+          content.classList.remove('active');
+        });
+        document.getElementById(`${tabName}-tab`).classList.add('active');
+      });
+    });
+
+    // 生成代码功能
+    document.addEventListener('DOMContentLoaded', function() {
+      const codeType = document.getElementById('codeType');
+      const content = document.getElementById('content');
+      const qrcodeErrorCorrection = document.getElementById('qrcodeErrorCorrection');
+      const qrcodeVersion = document.getElementById('qrcodeVersion');
+      const barcodeDisplayValue = document.getElementById('barcodeDisplayValue');
+      const generateBtn = document.getElementById('generateBtn');
+      const downloadBtn = document.getElementById('downloadBtn');
+      const copyBtn = document.getElementById('copyBtn');
+      const codeCanvas = document.getElementById('codeCanvas');
+      const notification = document.getElementById('notification');
+      const qrcodeOptions = document.getElementById('qrcodeOptions');
+      const barcodeOptions = document.getElementById('barcodeOptions');
+      
+      // 根据选择的码类型显示/隐藏选项
+      codeType.addEventListener('change', function() {
+        if (this.value === 'qrcode') {
+          qrcodeOptions.style.display = 'block';
+          barcodeOptions.style.display = 'none';
+        } else {
+          qrcodeOptions.style.display = 'none';
+          barcodeOptions.style.display = 'block';
+        }
+      });
+      
+      // 生成代码
+      generateBtn.addEventListener('click', generateCode);
+      
+      // 下载图片
+      downloadBtn.addEventListener('click', function() {
+        const link = document.createElement('a');
+        link.download = 'code.png';
+        link.href = codeCanvas.toDataURL('image/png');
+        link.click();
+        showNotification(translations[currentLang]['notification-downloaded']);
+      });
+      
+      // 复制图片到剪贴板
+      copyBtn.addEventListener('click', function() {
+        codeCanvas.toBlob(function(blob) {
+          const item = new ClipboardItem({ 'image/png': blob });
+          navigator.clipboard.write([item])
+            .then(function() {
+              showNotification(translations[currentLang]['notification-copied']);
+            })
+            .catch(function(error) {
+              console.error('复制失败: ', error);
+              showNotification(translations[currentLang]['notification-copy-failed'], true);
+            });
+        });
+      });
+      
+      // 生成代码函数
+      function generateCode() {
+        if (!content.value.trim()) {
+          showNotification(translations[currentLang]['notification-empty-content'], true);
+          return;
+        }
+        
+        const type = codeType.value;
+        const ctx = codeCanvas.getContext('2d');
+        
+        // 清除画布
+        ctx.clearRect(0, 0, codeCanvas.width, codeCanvas.height);
+        
+        try {
+          if (type === 'qrcode') {
+            // 生成二维码
+            QRCode.toCanvas(codeCanvas, content.value, {
+              errorCorrectionLevel: qrcodeErrorCorrection.value,
+              version: parseInt(qrcodeVersion.value) || undefined,
+              width: 300,
+              margin: 1,
+              color: {
+                dark: '#000000',
+                light: '#ffffff'
+              }
+            }, function(error) {
+              if (error) {
+                console.error(error);
+                showNotification(translations[currentLang]['notification-generation-failed'] + error.message, true);
+              } else {
+                showNotification(translations[currentLang]['notification-qr-success']);
+              }
+            });
+          } else {
+            // 生成条形码
+            JsBarcode(codeCanvas, content.value, {
+              format: type,
+              displayValue: barcodeDisplayValue.value === 'true',
+              width: 2,
+              height: 100,
+              margin: 10,
+              background: '#ffffff',
+              lineColor: '#000000'
+            });
+            showNotification(translations[currentLang]['notification-barcode-success']);
+          }
+        } catch (error) {
+          console.error(error);
+          showNotification(translations[currentLang]['notification-generation-failed'] + error.message, true);
+        }
+      }
+      
+      // 显示通知
+      function showNotification(message, isError = false) {
+        notification.textContent = message;
+        notification.classList.toggle('error', isError);
+        notification.classList.add('show');
+        
+        setTimeout(function() {
+          notification.classList.remove('show');
+        }, 3000);
+      }
+      notification.addEventListener("click", ()=>{notification.classList.remove('show');});
+      
+      // 初始生成一个示例
+      content.value = 'https://www.example.com';
+      generateCode();
+    });
+
+    // 扫描功能
+    // 简易日志
+    const logEl = document.getElementById('log');
+    function log(msg) {
+      const time = new Date().toLocaleTimeString();
+      logEl.value += `[${time}] ${msg}\n`;
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    // 工具函数
+    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+    function bytesToHex(uint8) {
+      if (!uint8) return '';
+      return Array.from(uint8, b => b.toString(16).padStart(2, '0')).join(' ');
+    }
+    function textToBytes(text, enc) {
+      try {
+        if (enc === 'iso-8859-1') {
+          // 单字节映射
+          const out = new Uint8Array(text.length);
+          for (let i=0;i<text.length;i++) out[i] = text.charCodeAt(i) & 0xFF;
+          return out;
+        } else if (enc === 'shift_jis') {
+          // 采用 TextEncoder 不支持，简单降级：用 Encoding API 若可用
+          if ('TextEncoder' in window && 'encoding' in TextEncoder.prototype) {
+            return new TextEncoder('shift_jis').encode(text);
+          }
+          // 简化降级：转 UTF-8
+          return new TextEncoder().encode(text);
+        } else if (enc === 'ascii') {
+          const out = new Uint8Array(text.length);
+          for (let i=0;i<text.length;i++) out[i] = text.charCodeAt(i) & 0x7F;
+          return out;
+        } else {
+          return new TextEncoder().encode(text);
+        }
+      } catch(e) {
+        log('编码失败，使用 UTF-8：' + e);
+        return new TextEncoder().encode(text);
+      }
+    }
+    function bytesToText(uint8, encHint) {
+      try {
+        if (encHint && encHint.toLowerCase().includes('shift') && 'TextDecoder' in window) {
+          return new TextDecoder('shift_jis', {fatal:false}).decode(uint8);
+        }
+        if (encHint && encHint.toLowerCase().includes('iso')) {
+          return Array.from(uint8, b => String.fromCharCode(b)).join('');
+        }
+        return new TextDecoder().decode(uint8);
+      } catch {
+        // 回退 Latin-1
+        return Array.from(uint8, b => String.fromCharCode(b)).join('');
+      }
+    }
+    function autoDecodeRaw(rawBytes) {
+      // 尝试 UTF-8，否则 Latin-1
+      try {
+        return { text: new TextDecoder('utf-8', {fatal:true}).decode(rawBytes), encoding: 'UTF-8' };
+      } catch {
+        return { text: Array.from(rawBytes, b => String.fromCharCode(b)).join(''), encoding: 'ISO-8859-1 (assumed)' };
+      }
+    }
+    async function copyText(sel) {
+      const el = typeof sel === 'string' ? document.querySelector(sel) : sel;
+      if (!el) return;
+      const text = el.value ?? el.textContent ?? '';
+      await navigator.clipboard.writeText(text);
+      toast(translations[currentLang]['notification-copied']);
+    }
+    async function copyCanvas(canvas) {
+      try {
+        if (canvas.toBlob && navigator.clipboard?.write) {
+          const blob = await new Promise(r => canvas.toBlob(r));
+          await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+          toast(translations[currentLang]['notification-copied']);
+        } else {
+          toast('复制图像失败，请使用现代浏览器', true);
+        }
+      } catch (e) {
+        console.error(e);
+        toast('复制图像失败', true);
+      }
+    }
+    function saveCanvas(canvas, name = 'frame.png') {
+      const link = document.createElement('a');
+      link.download = name;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }
+    function toast(msg, isError) {
+      const el = document.getElementById('notification');
+      el.textContent = msg;
+      el.classList.toggle('error', isError);
+      el.classList.add('show');
+      setTimeout(() => el.classList.remove('show'), 3000);
+    }
+
+    // 扫描器
+    const videoEl = document.getElementById('video');
+    const canvasEl = document.getElementById('canvas');
+    const ctx = canvasEl.getContext('2d');
+    const scanTextEl = document.getElementById('scan-text');
+    const scanHexEl = document.getElementById('scan-hex');
+    const formatTagEl = document.getElementById('format-tag');
+    const symbologyTagEl = document.getElementById('symbology-tag');
+    const encodingTagEl = document.getElementById('encoding-tag');
+    const streamHintEl = document.querySelector('#stream-hint');
+    const chkBinarize = document.getElementById('chk-binarize');
+    const chkRotate = document.getElementById('chk-rotate');
+    const maxSizeEl = document.getElementById('max-size');
+    const intervalEl = document.getElementById('interval');
+
+    let stream = null;
+    let intervalId = null;
+    let zxingReader = null;
+    let jsQRDetector = null;
+
+    // 初始化
+    async function init() {
+      zxingReader = new ZXing.BrowserMultiFormatReader();
+      jsQRDetector = new ZXing.BrowserQRCodeReader();
+      log('初始化完成，ZXing 版本：' + ZXing.version);
+      
+      // 监听粘贴事件
+      document.addEventListener('paste', handlePaste);
+      
+      // 监听拖拽事件
+      const dropzone = document.getElementById('dropzone');
+      dropzone.addEventListener('dragover', e => {
+        e.preventDefault();
+        dropzone.classList.add('dragover');
+      });
+      dropzone.addEventListener('dragleave', () => {
+        dropzone.classList.remove('dragover');
+      });
+      dropzone.addEventListener('drop', e => {
+        e.preventDefault();
+        dropzone.classList.remove('dragover');
+        const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+        if (files.length) handleFiles(files);
+      });
+      
+      // 按钮事件
+      document.getElementById('btn-camera').addEventListener('click', startCamera);
+      document.getElementById('btn-screen').addEventListener('click', startScreen);
+      document.getElementById('btn-file').addEventListener('click', () => document.getElementById('file-input').click());
+      document.getElementById('file-input').addEventListener('change', e => handleFiles(Array.from(e.target.files)));
+      document.getElementById('btn-clipboard').addEventListener('click', () => document.execCommand('paste'));
+      document.getElementById('btn-go-to').addEventListener('click', () => {
+        const t = scanTextEl.value; try{new URL(t);}catch{t='http://'+t;}; window.open(t, "_blank");});
+      document.getElementById('btn-stop').addEventListener('click', stopStream);
+      document.getElementById('btn-clear-scan').addEventListener('click', clearResults);
+      document.getElementById('btn-copy-frame').addEventListener('click', () => copyCanvas(canvasEl));
+      document.getElementById('btn-save-frame').addEventListener('click', () => saveCanvas(canvasEl));
+      document.querySelectorAll('[data-copy]').forEach(btn => {
+        btn.addEventListener('click', () => copyText(btn.dataset.copy));
+      });
+    }
+
+    // 处理粘贴事件
+    async function handlePaste(e) {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      
+      const files = Array.from(items)
+        .filter(i => i.type.startsWith('image/'))
+        .map(i => i.getAsFile());
+        
+      if (files.length) {
+        e.preventDefault();
+        handleFiles(files);
+      }
+    }
+
+    // 处理文件
+    async function handleFiles(files) {
+      for (const file of files) {
+        log(`处理文件：${file.name}`);
+        const img = new Image();
+        img.src = URL.createObjectURL(file);
+        await new Promise(r => img.onload = r);
+        await scanImage(img);
+        URL.revokeObjectURL(img.src);
+      }
+    }
+
+    // 开始摄像头
+    async function startCamera() {
+      try {
+        stopStream();
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        videoEl.srcObject = stream;
+        await videoEl.play();
+        streamHintEl.textContent = '摄像头';
+        startScanning();
+      } catch (e) {
+        log('摄像头错误：' + e.message);
+      }
+    }
+
+    // 开始屏幕共享
+    async function startScreen() {
+      try {
+        stopStream();
+        stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+        videoEl.srcObject = stream;
+        await videoEl.play();
+        streamHintEl.textContent = '屏幕共享';
+        startScanning();
+      } catch (e) {
+        log('屏幕共享错误：' + e.message);
+      }
+    }
+
+    // 停止流
+    function stopStream() {
+      if (intervalId) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+      if (stream) {
+        stream.getTracks().forEach(t => t.stop());
+        stream = null;
+        videoEl.srcObject = null;
+        streamHintEl.textContent = '未激活';
+      }
+    }
+
+    // 开始扫描
+    function startScanning() {
+      if (intervalId) clearInterval(intervalId);
+      intervalId = setInterval(captureAndScan, parseInt(intervalEl.value));
+    }
+
+    // 捕获并扫描
+    async function captureAndScan() {
+      if (videoEl.readyState < 2) return;
+      
+      // 调整画布大小
+      canvasEl.width = videoEl.videoWidth;
+      canvasEl.height = videoEl.videoHeight;
+      
+      // 绘制帧
+      ctx.drawImage(videoEl, 0, 0, canvasEl.width, canvasEl.height);
+      
+      // 扫描
+      await scanCanvas(canvasEl);
+    }
+
+    // 扫描画布
+    async function scanCanvas(canvas) {
+      const maxSize = parseInt(maxSizeEl.value);
+      let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      
+      // 调整大小以提高性能
+      if (Math.max(imageData.width, imageData.height) > maxSize) {
+        const scale = maxSize / Math.max(imageData.width, imageData.height);
+        const smallCanvas = document.createElement('canvas');
+        smallCanvas.width = Math.floor(imageData.width * scale);
+        smallCanvas.height = Math.floor(imageData.height * scale);
+        const smallCtx = smallCanvas.getContext('2d');
+        smallCtx.drawImage(canvas, 0, 0, smallCanvas.width, smallCanvas.height);
+        imageData = smallCtx.getImageData(0, 0, smallCanvas.width, smallCanvas.height);
+      }
+      
+      // 二值化
+      if (chkBinarize.checked) {
+        const data = imageData.data;
+        for (let i = 0; i < data.length; i += 4) {
+          const avg = (data[i] + data[i+1] + data[i+2]) / 3;
+          const val = avg > 128 ? 255 : 0;
+          data[i] = data[i+1] = data[i+2] = val;
+        }
+      }
+      
+      // 使用 ZXing 扫描
+      try {
+        const result = await zxingReader.decodeFromImageData(imageData);
+        if (result) {
+          handleScanResult(result);
+          return;
+        }
+      } catch (e) {
+        // 忽略错误，继续尝试 jsQR
+      }
+      
+      // 使用 jsQR 扫描（仅二维码）
+      try {
+        const code = jsQR(imageData.data, imageData.width, imageData.height, {
+          inversionAttempts: 'dontInvert',
+        });
+        
+        if (code) {
+          handleScanResult({
+            text: code.data,
+            rawBytes: textToBytes(code.data),
+            format: 'QR_CODE'
+          });
+          return;
+        }
+      } catch (e) {
+        // 忽略错误
+      }
+    }
+
+    // 处理扫描结果
+    function handleScanResult(result) {
+      scanTextEl.value = result.text;
+      if (isValidURL(result.text)){
+        document.getElementById('btn-go-to').removeAttribute("disabled");
+      }else{
+        document.getElementById('btn-go-to').setAttribute("disabled", "");
+      }
+
+      formatTagEl.textContent = `Format: ${result.format || 'QR_CODE'}`;
+      symbologyTagEl.textContent = `Symbology: ${result.format || 'QR_CODE'}`;
+      
+      // 处理原始字节
+      if (result.rawBytes) {
+        const hex = bytesToHex(result.rawBytes);
+        scanHexEl.value = hex;
+        
+        // 尝试自动解码
+        const decoded = autoDecodeRaw(result.rawBytes);
+        encodingTagEl.textContent = decoded.encoding;
+      } else {
+        scanHexEl.value = '';
+        encodingTagEl.textContent = '文本';
+      }
+      
+      log(`检测到: ${result.format}，内容: ${result.text.substring(0, 100)}${result.text.length > 100 ? '...' : ''}`);
+    }
+
+    function isValidURL(string) {
+      try {
+        string = string.trim();
+        new URL()
+        return true;
+      } catch (err) {
+        const urlPattern = new RegExp(
+          "^(https?:\\/\\/)?" + // 协议
+            "((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|" + // 域名
+            "((\\d{1,3}\\.){3}\\d{1,3}))" + // IP地址
+            "(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*" + // 端口和路径
+            "(\\?[;&a-z\\d%_.~+=-]*)?" + // 查询字符串
+            "(\\#[-a-z\\d_]*)?$",
+          "i"
+        ); // 碎片标识
+        return urlPattern.test(string);
+      }
+    }
+
+    // 扫描图像
+    async function scanImage(img) {
+      canvasEl.width = img.width;
+      canvasEl.height = img.height;
+      ctx.drawImage(img, 0, 0);
+      await scanCanvas(canvasEl);
+    }
+
+    // 清空结果
+    function clearResults() {
+      scanTextEl.value = '';
+      scanHexEl.value = '';
+      formatTagEl.textContent = 'Format: -';
+      symbologyTagEl.textContent = 'Symbology: -';
+      encodingTagEl.textContent = '未知/自动';
+      log('结果已清空');
+    }
+
+    // 初始化应用
+    init();
+  </script>
+</body>
+</html>
