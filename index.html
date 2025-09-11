@@ -150,6 +150,16 @@
       outline: none;
     }
     textarea { min-height: 80px; resize: vertical; }
+    
+    @keyframes highlight {
+      0% { background-color: #b0ff38; }
+      50% { background-color: #b0ff38; }
+      100% { background-color: transparent; }
+    }
+    .highlight {
+      animation: highlight 0.4s ease;
+    }
+
     button, .btn {
       appearance: none;
       border: 1px solid var(--border);
@@ -211,6 +221,41 @@
       display: grid;
       gap: 8px;
       grid-template-columns: 1fr 1fr;
+    }
+    .history-panel {
+      margin-top: 16px;
+      border-top: 1px solid var(--border);
+      padding-top: 16px;
+    }
+    .history-item {
+      padding: 8px;
+      border-radius: 8px;
+      background: color-mix(in oklab, var(--accent) 5%, transparent);
+      margin-bottom: 8px;
+      font-size: 13px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .history-container {
+      max-height: 200px;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px;
+      margin-top: 8px;
+    }
+    .history-content {
+      word-break: break-all;
+      flex: 1;
+    }
+    .history-actions {
+      display: flex;
+      gap: 4px;
+    }
+    .history-btn {
+      padding: 4px 8px;
+      font-size: 12px;
     }
     @media (max-width: 768px) {
       .split { grid-template-columns: 1fr; }
@@ -341,7 +386,7 @@
               <textarea id="scan-text" class="mono" placeholder="结果文本"></textarea>
               <div class="row">
                 <button class="btn copy-btn" data-copy="#scan-text" id="btn-copy-text">复制文本</button>
-                <button class="btn copy-btn" id="btn-go-to" disabled>前往目标</button>
+                <button class="btn copy-btn primary" id="btn-go-to" disabled>前往目标</button>
                 <span id="format-tag" class="tag">Format Tag: -</span>
                 <span id="symbology-tag" class="tag">Symbology: -</span>
               </div>
@@ -355,11 +400,16 @@
                 <span class="hint" id="label-encoding">编码: <span id="encoding-tag">未知/自动</span></span>
               </div>
             </div>
-            
-            <div class="field">
-              <label id="label-log">日志</label>
-              <textarea id="log" class="mono" style="height:100px" readonly=""></textarea>
-            </div>
+
+            <div class="history-panel">
+              <div class="section-title">
+                <h2 id="scan-history-title">扫描历史</h2>
+                <button id="btn-clear-scan-history" class="btn danger">清空历史</button>
+              </div>
+              <div class="history-container"> 
+                <div id="scan-history-list"></div>
+              </div>
+            </div>           
             
           </div>
 
@@ -372,7 +422,7 @@
                   <video id="video" playsinline="" muted=""></video>
                   
                   <div class="row">
-                    <button id="btn-stop" class="btn" id="btn-stop-text">停止输入</button>
+                    <button id="btn-stop" class="btn danger" id="btn-stop-text" disabled>停止输入</button>
                     <span class="hint" id="stream-hint">未激活</span>
                   </div>
                 </div>
@@ -386,6 +436,7 @@
                     <span class="hint" id="label-right-click">右键另存为亦可</span>
                   </div>
                 </div>
+                
 
               </div>
               
@@ -412,6 +463,11 @@
                   <input type="number" id="interval" value="300" min="60" step="20" style="width:120px">
                   <span class="hint" id="label-ms-per-frame">毫秒/帧（越小越快）</span>
                 </div>
+              </div>
+
+              <div class="field">
+                <label id="label-log">日志</label>
+                <textarea id="log" class="mono" style="height:100px" readonly=""></textarea>
               </div>
             </div>
 
@@ -497,6 +553,17 @@
             </div>
             
             <button id="generateBtn" class="primary" id="btn-generate">生成代码</button>
+            
+            <div class="history-panel">
+              <div class="section-title">
+                <h2 id="generate-history-title">生成历史</h2>
+                <button id="btn-clear-generate-history" class="btn danger">清空历史</button>
+              </div>
+              <div class="history-container">
+                <div id="generate-history-list"></div>
+              </div>
+            </div>
+            
           </div>
           
           <div class="generate-preview">
@@ -541,6 +608,8 @@
         'generateBtn': '生成代码',
         'downloadBtn': '下载图片',
         'copyBtn': '复制图片',
+        'generate-history-title': '生成历史',
+        'btn-clear-generate-history': "清空历史",
         
         // 扫描页面
         'scan-title': '扫描',
@@ -571,6 +640,8 @@
         'label-frame-rate': '帧抓取频率（摄像头/屏幕）',
         'label-ms-per-frame': '毫秒/帧（越小越快）',
         'label-supported-formats': '支持的格式',
+        'scan-history-title': '扫描历史',
+        'btn-clear-scan-history': "清空历史",
         
         // 通知消息
         'notification-success': '操作成功！',
@@ -603,6 +674,8 @@
         'generateBtn': 'Generate Code',
         'downloadBtn': 'Download Image',
         'copyBtn': 'Copy Image',
+        'generate-history-title': 'Generate History',
+        'btn-clear-generate-history': "Clear History",
         
         // 扫描页面
         'scan-title': 'Scan',
@@ -633,6 +706,8 @@
         'label-frame-rate': 'Frame Rate (Camera/Screen)',
         'label-ms-per-frame': 'ms/frame (smaller is faster)',
         'label-supported-formats': 'Supported Formats',
+        'scan-history-title': 'Scan History',
+        'btn-clear-scan-history': "Clear History",
         
         // 通知消息
         'notification-success': 'Operation successful!',
@@ -701,125 +776,140 @@
 
     // 生成代码功能
     document.addEventListener('DOMContentLoaded', function() {
-      const codeType = document.getElementById('codeType');
-      const content = document.getElementById('content');
-      const qrcodeErrorCorrection = document.getElementById('qrcodeErrorCorrection');
-      const qrcodeVersion = document.getElementById('qrcodeVersion');
-      const barcodeDisplayValue = document.getElementById('barcodeDisplayValue');
-      const generateBtn = document.getElementById('generateBtn');
-      const downloadBtn = document.getElementById('downloadBtn');
-      const copyBtn = document.getElementById('copyBtn');
-      const codeCanvas = document.getElementById('codeCanvas');
-      const notification = document.getElementById('notification');
-      const qrcodeOptions = document.getElementById('qrcodeOptions');
-      const barcodeOptions = document.getElementById('barcodeOptions');
-      
-      // 根据选择的码类型显示/隐藏选项
-      codeType.addEventListener('change', function() {
-        if (this.value === 'qrcode') {
-          qrcodeOptions.style.display = 'block';
-          barcodeOptions.style.display = 'none';
-        } else {
-          qrcodeOptions.style.display = 'none';
-          barcodeOptions.style.display = 'block';
-        }
-      });
-      
-      // 生成代码
-      generateBtn.addEventListener('click', generateCode);
-      
-      // 下载图片
-      downloadBtn.addEventListener('click', function() {
-        const link = document.createElement('a');
-        link.download = 'code.png';
-        link.href = codeCanvas.toDataURL('image/png');
-        link.click();
-        showNotification(translations[currentLang]['notification-downloaded']);
-      });
-      
-      // 复制图片到剪贴板
-      copyBtn.addEventListener('click', function() {
-        codeCanvas.toBlob(function(blob) {
-          const item = new ClipboardItem({ 'image/png': blob });
-          navigator.clipboard.write([item])
-            .then(function() {
-              showNotification(translations[currentLang]['notification-copied']);
-            })
-            .catch(function(error) {
-              console.error('复制失败: ', error);
-              showNotification(translations[currentLang]['notification-copy-failed'], true);
-            });
-        });
-      });
-      
-      // 生成代码函数
-      function generateCode() {
-        if (!content.value.trim()) {
-          showNotification(translations[currentLang]['notification-empty-content'], true);
-          return;
-        }
-        
-        const type = codeType.value;
-        const ctx = codeCanvas.getContext('2d');
-        
-        // 清除画布
-        ctx.clearRect(0, 0, codeCanvas.width, codeCanvas.height);
-        
-        try {
-          if (type === 'qrcode') {
-            // 生成二维码
-            QRCode.toCanvas(codeCanvas, content.value, {
-              errorCorrectionLevel: qrcodeErrorCorrection.value,
-              version: parseInt(qrcodeVersion.value) || undefined,
-              width: 300,
-              margin: 1,
-              color: {
-                dark: '#000000',
-                light: '#ffffff'
-              }
-            }, function(error) {
-              if (error) {
-                console.error(error);
-                showNotification(translations[currentLang]['notification-generation-failed'] + error.message, true);
-              } else {
-                showNotification(translations[currentLang]['notification-qr-success']);
-              }
-            });
-          } else {
-            // 生成条形码
-            JsBarcode(codeCanvas, content.value, {
-              format: type,
-              displayValue: barcodeDisplayValue.value === 'true',
-              width: 2,
-              height: 100,
-              margin: 10,
-              background: '#ffffff',
-              lineColor: '#000000'
-            });
-            showNotification(translations[currentLang]['notification-barcode-success']);
-          }
-        } catch (error) {
-          console.error(error);
-          showNotification(translations[currentLang]['notification-generation-failed'] + error.message, true);
-        }
-      }
-      
-      // 显示通知
-      function showNotification(message, isError = false) {
-        notification.textContent = message;
-        notification.classList.toggle('error', isError);
-        notification.classList.add('show');
-        
-        setTimeout(function() {
-          notification.classList.remove('show');
-        }, 3000);
-      }
-      notification.addEventListener("click", ()=>{notification.classList.remove('show');});
       
       // 初始生成一个示例
       content.value = 'https://www.example.com';
       generateCode();
     });
+    const codeType = document.getElementById('codeType');
+    const content = document.getElementById('content');
+    const qrcodeErrorCorrection = document.getElementById('qrcodeErrorCorrection');
+    const qrcodeVersion = document.getElementById('qrcodeVersion');
+    const barcodeDisplayValue = document.getElementById('barcodeDisplayValue');
+    const generateBtn = document.getElementById('generateBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const copyBtn = document.getElementById('copyBtn');
+    const codeCanvas = document.getElementById('codeCanvas');
+    const notification = document.getElementById('notification');
+    const qrcodeOptions = document.getElementById('qrcodeOptions');
+    const barcodeOptions = document.getElementById('barcodeOptions');
+    
+    // 生成代码
+    generateBtn.addEventListener('click', generateCode);
+    
+    // 下载图片
+    downloadBtn.addEventListener('click', function() {
+      const link = document.createElement('a');
+      link.download = 'code.png';
+      link.href = codeCanvas.toDataURL('image/png');
+      link.click();
+      showNotification(translations[currentLang]['notification-downloaded']);
+    });
+    
+    // 复制图片到剪贴板
+    copyBtn.addEventListener('click', function() {
+      codeCanvas.toBlob(function(blob) {
+        const item = new ClipboardItem({ 'image/png': blob });
+        navigator.clipboard.write([item])
+          .then(function() {
+            showNotification(translations[currentLang]['notification-copied']);
+          })
+          .catch(function(error) {
+            console.error('复制失败: ', error);
+            showNotification(translations[currentLang]['notification-copy-failed'], true);
+          });
+      });
+    });
+    
+    // 生成代码函数
+    function generateCode() {
+      if (!content.value.trim()) {
+        showNotification(translations[currentLang]['notification-empty-content'], true);
+        return;
+      }
+      
+      const type = codeType.value;
+      const ctx = codeCanvas.getContext('2d');
+      
+      // 清除画布
+      ctx.clearRect(0, 0, codeCanvas.width, codeCanvas.height);
+      
+      try {
+        if (type === 'qrcode') {
+
+          const options = {
+            errorCorrectionLevel: qrcodeErrorCorrection.value,
+            version: parseInt(qrcodeVersion.value) || undefined,
+            width: 300,
+            margin: 1,
+            color: {
+              dark: '#000000',
+              light: '#ffffff'
+            }
+          };
+
+          // 生成二维码
+          QRCode.toCanvas(codeCanvas, content.value,options, function(error) {
+            if (error) {
+              console.error(error);
+              showNotification(translations[currentLang]['notification-generation-failed'] + error.message, true);
+            } else {
+              showNotification(translations[currentLang]['notification-qr-success']);
+              saveGenerateHistory(type, content.value, {
+                errorCorrectionLevel: options.errorCorrectionLevel,
+                version: options.version
+              });
+            }
+          });
+        } else {
+
+          const options = {
+            format: type,
+            displayValue: barcodeDisplayValue.value === 'true',
+            width: 2,
+            height: 100,
+            margin: 10,
+            background: '#ffffff',
+            lineColor: '#000000'
+          };
+
+          // 生成条形码
+          JsBarcode(codeCanvas, content.value, options);
+          showNotification(translations[currentLang]['notification-barcode-success']);
+          saveGenerateHistory(type, content.value, {
+            displayValue: options.displayValue
+          });
+        }
+      } catch (error) {
+        console.error(error);
+        showNotification(translations[currentLang]['notification-generation-failed'] + error.message, true);
+      }
+    }
+    // 根据选择的码类型显示/隐藏选项
+    function toggleGenerationOptions() {
+      if (codeType.value === 'qrcode') {
+        qrcodeOptions.style.display = 'block';
+        barcodeOptions.style.display = 'none';
+      } else {
+        qrcodeOptions.style.display = 'none';
+        barcodeOptions.style.display = 'block';
+      }
+    }
+    codeType.addEventListener('change', toggleGenerationOptions);
+
+    // 显示通知
+    notificationHideTimeout = null;
+      function showNotification(message, isError = false) {
+        if(notificationHideTimeout){clearTimeout(notificationHideTimeout); notificationHideTimeout=null;}
+        notification.textContent = message;
+        notification.classList.toggle('error', isError);
+        notification.classList.add('show');
+        
+        notificationHideTimeout = setTimeout(function() {
+          notification.classList.remove('show'); notificationHideTimeout=null;
+        }, 3000);
+      }
+    notification.addEventListener("click", ()=>{notification.classList.remove('show');});
 
     // 扫描功能
     // 简易日志
@@ -912,12 +1002,15 @@
       link.href = canvas.toDataURL('image/png');
       link.click();
     }
+    notificationHideTimeout = null;
+    toast = showNotification;
     function toast(msg, isError) {
+      if(notificationHideTimeout){clearTimeout(notificationHideTimeout); notificationHideTimeout=null;}
       const el = document.getElementById('notification');
       el.textContent = msg;
       el.classList.toggle('error', isError);
       el.classList.add('show');
-      setTimeout(() => el.classList.remove('show'), 3000);
+      notificationHideTimeout = setTimeout(() => {el.classList.remove('show');notificationHideTimeout=null;}, 3000);
     }
     
 
@@ -1040,7 +1133,8 @@
         }
       });
       document.getElementById('btn-go-to').addEventListener('click', () => {
-        let t = scanTextEl.value; try{new URL(t);}catch{t=((isValidURL(t)==1?'http://':'mailto:')+t);}; window.open(t, "_blank");});
+        let t = scanTextEl.value.trim(); try{new URL(t);}catch{t=((isValidURL(t)==1?'http://':'mailto:')+t);};
+        window.open(t, "_blank");});
       document.getElementById('btn-stop').addEventListener('click', stopStream);
       document.getElementById('btn-clear-scan').addEventListener('click', clearResults);
       document.getElementById('btn-copy-frame').addEventListener('click', () => copyCanvas(canvasEl));
@@ -1048,6 +1142,9 @@
       document.querySelectorAll('[data-copy]').forEach(btn => {
         btn.addEventListener('click', () => copyText(btn.dataset.copy));
       });
+      
+      renderGenerateHistory();
+      renderScanHistory();
     }
 
     // 处理粘贴事件
@@ -1104,6 +1201,7 @@
         stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
         videoEl.srcObject = stream;
         await video.play();
+        document.getElementById('btn-stop').removeAttribute("disabled");
         streamHintEl.textContent = '摄像头已开启';
         toast('摄像头已开启', 0);
         // 定时抓帧
@@ -1123,6 +1221,7 @@
         stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
         videoEl.srcObject = stream;
         await video.play();
+        document.getElementById('btn-stop').removeAttribute("disabled");
         streamHintEl.textContent = '屏幕共享中';
         scanTimer = setInterval(async () => {
           await processImageSource(video, false);
@@ -1144,6 +1243,7 @@
         videoEl.srcObject = null;
         streamHintEl.textContent = '未激活';
       }
+      document.getElementById('btn-stop').setAttribute("disabled", "");
     }
 
     // 开始扫描
@@ -1181,6 +1281,17 @@
       return false;
     }
 
+    function decodeWithJsQR() {
+      try {
+        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const q = jsQR(imgData.data, imgData.width, imgData.height, { inversionAttempts: 'dontInvert' });
+        if (q && q.data) {
+          return { text: q.data, format: 'QR_CODE', rawBytes: null, symbology: 'QR Code' };
+        }
+      } catch {}
+      return null;
+    }
+
     async function tryDecodeCurrentFrame() {
       let result = await decodeFromCanvas();
       if (result) {
@@ -1213,7 +1324,10 @@
       return false;
     }
 
+
     function showResult({ text, rawBytes, format, symbology, encoding }) {
+      const previousText = scanTextEl.value
+
       scanTextEl.value = text ?? '';
       scanHexEl.value = rawBytes ? bytesToHex(rawBytes) : '';
       formatTagEl.textContent = "Format Tag: " + (format || '-');
@@ -1224,6 +1338,14 @@
         document.getElementById('btn-go-to').removeAttribute("disabled");
       }else{
         document.getElementById('btn-go-to').setAttribute("disabled", "");
+      }
+
+      if (previousText !== (text ?? '')) {
+        scanTextEl.classList.remove('highlight');
+        void scanTextEl.offsetWidth;
+        scanTextEl.classList.add('highlight');
+        
+        saveScanHistory({ text, rawBytes, format, symbology, encoding });
       }
     }
 
@@ -1375,6 +1497,7 @@
     // }
 
     function isValidURL(string) {
+      string = string.trim()
       
       const urlPattern = new RegExp(
         "^(https?:\\/\\/)?" + // 协议
@@ -1391,6 +1514,180 @@
       
     }
 
+    let scanHistory = JSON.parse(localStorage.getItem('scanHistory') || '[]');
+    let generateHistory = JSON.parse(localStorage.getItem('generateHistory') || '[]');
+
+    // 保存扫描历史
+    function saveScanHistory(result) {
+      // 检查是否已存在相同内容的历史记录
+      const exists = scanHistory.some(item => 
+        item.text === result.text && 
+        (!result.rawBytes || item.hex === bytesToHex(result.rawBytes))
+      );
+      
+      if (!exists) {
+        const historyItem = {
+          text: result.text,
+          hex: result.rawBytes ? bytesToHex(result.rawBytes) : '',
+          format: result.format || '',
+          symbology: result.symbology || '',
+          encoding: result.encoding || '',
+          timestamp: new Date().toISOString()
+        };
+        
+        scanHistory.unshift(historyItem);
+        // 限制历史记录数量（最多50条）
+        if (scanHistory.length > 50) {
+          scanHistory = scanHistory.slice(0, 50);
+        }
+        
+        localStorage.setItem('scanHistory', JSON.stringify(scanHistory));
+        renderScanHistory();
+      }
+    }
+
+    function saveGenerateHistory(type, content, options = {}) {
+      // 检查是否已存在相同内容的历史记录
+      const exists = generateHistory.some(item => 
+        item.type === type && 
+        item.content === content &&
+        JSON.stringify(item.options) === JSON.stringify(options)
+      );
+      
+      if (!exists) {
+        const historyItem = {
+          type,
+          content,
+          options,
+          timestamp: new Date().toISOString()
+        };
+        
+        generateHistory.unshift(historyItem);
+        // 限制历史记录数量（最多20条）
+        if (generateHistory.length > 20) {
+          generateHistory = generateHistory.slice(0, 20);
+        }
+        
+        localStorage.setItem('generateHistory', JSON.stringify(generateHistory));
+        renderGenerateHistory();
+      }
+    }
+
+    // 渲染扫描历史
+    function renderScanHistory() {
+      const container = document.getElementById('scan-history-list');
+      container.innerHTML = '';
+      
+      scanHistory.forEach((item, index) => {
+        const historyItem = document.createElement('div');
+        historyItem.className = 'history-item';
+        
+        const content = document.createElement('div');
+        content.className = 'history-content';
+        content.textContent = item.text.replaceAll('\n', "\\n") || '(无文本内容)';
+        if(content.textContent.length>47){
+          content.textContent = content.textContent.slice(0,47)+'...'}
+        
+        const actions = document.createElement('div');
+        actions.className = 'history-actions';
+        
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'btn history-btn';
+        copyBtn.textContent = '📋';
+        copyBtn.onclick = () => {
+          navigator.clipboard.writeText(item.text);
+          toast('已复制到剪贴板');
+        };
+        
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'btn history-btn danger';
+        deleteBtn.textContent = '✕';
+        deleteBtn.onclick = () => {
+          scanHistory.splice(index, 1);
+          localStorage.setItem('scanHistory', JSON.stringify(scanHistory));
+          renderScanHistory();
+        };
+        
+        actions.appendChild(copyBtn);
+        actions.appendChild(deleteBtn);
+        
+        historyItem.appendChild(content);
+        historyItem.appendChild(actions);
+        
+        container.appendChild(historyItem);
+      });
+    }
+
+    // 渲染生成历史
+    function renderGenerateHistory() {
+      const container = document.getElementById('generate-history-list');
+      container.innerHTML = '';
+      
+      generateHistory.forEach((item, index) => {
+        const historyItem = document.createElement('div');
+        historyItem.className = 'history-item';
+        
+        const content = document.createElement('div');
+        content.className = 'history-content';
+        content.textContent = item.content.replaceAll("\n", "\\n");
+        if(content.textContent.length>47){
+          content.textContent = content.textContent.slice(0,47)+'...'}
+        
+        const actions = document.createElement('div');
+        actions.className = 'history-actions';
+        
+        const regenerateBtn = document.createElement('button');
+        regenerateBtn.className = 'btn history-btn primary';
+        regenerateBtn.textContent = '🔄️';
+        regenerateBtn.onclick = () => {
+          document.getElementById('codeType').value = item.type;
+          document.getElementById('content').value = item.content;
+          
+          // 设置特定选项
+          if (item.type === 'qrcode') {
+            document.getElementById('qrcodeErrorCorrection').value = item.options.errorCorrectionLevel || 'M';
+            document.getElementById('qrcodeVersion').value = item.options.version || 0;
+          } else {
+            document.getElementById('barcodeDisplayValue').value = item.options.displayValue !== false;
+          }
+          toggleGenerationOptions();
+          
+          generateCode();
+          // 切换到生成标签页
+          document.querySelector('[data-tab="generate"]').click();
+        };
+        
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'btn history-btn danger';
+        deleteBtn.textContent = '✕';
+        deleteBtn.onclick = () => {
+          generateHistory.splice(index, 1);
+          localStorage.setItem('generateHistory', JSON.stringify(generateHistory));
+          renderGenerateHistory();
+        };
+        
+        actions.appendChild(regenerateBtn);
+        actions.appendChild(deleteBtn);
+        
+        historyItem.appendChild(content);
+        historyItem.appendChild(actions);
+        
+        container.appendChild(historyItem);
+      });
+    }
+
+    document.getElementById('btn-clear-scan-history').addEventListener('click', () => {
+      scanHistory = [];
+      localStorage.setItem('scanHistory', JSON.stringify(scanHistory));
+      renderScanHistory();
+      
+    });
+
+    document.getElementById('btn-clear-generate-history').addEventListener('click', () => {
+      generateHistory = [];
+      localStorage.setItem('generateHistory', JSON.stringify(generateHistory));
+      renderGenerateHistory();
+    });
     // 扫描图像
     // async function scanImage(img) {
     //   canvasEl.width = img.width;
